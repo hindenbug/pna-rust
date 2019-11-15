@@ -1,8 +1,11 @@
 extern crate clap;
 use clap::{App, Arg, SubCommand};
+use kvs::{KvStore, Result};
+use std::env::current_dir;
 use std::process::exit;
 
-fn main() {
+fn main() -> Result<()> {
+    let mut store = KvStore::open(current_dir()?)?;
     let matches = App::new(env!("CARGO_PKG_NAME"))
         .version(env!("CARGO_PKG_VERSION"))
         .author(env!("CARGO_PKG_AUTHORS"))
@@ -44,21 +47,36 @@ fn main() {
         .get_matches();
 
     match matches.subcommand() {
-        ("set", Some(_matches)) => {
-            eprintln!("unimplemented");
-            exit(1)
+        ("set", Some(matches)) => {
+            let key = matches.value_of("KEY").expect("KEY argument missing");
+            let value = matches.value_of("VALUE").expect("VALUE argument missing");
+
+            store.set(key.to_string(), value.to_string())?;
         }
-        ("get", Some(_matches)) => {
-            eprintln!("unimplemented");
-            exit(1)
+        ("get", Some(matches)) => {
+            let key = matches.value_of("KEY").expect("KEY argument missing");
+
+            if let Some(value) = store.get(key.to_string())? {
+                println!("{}", value);
+            } else {
+                println!("Key not found");
+            }
         }
-        ("rm", Some(_matches)) => {
-            eprintln!("unimplemented");
-            exit(1)
+        ("rm", Some(matches)) => {
+            let key = matches.value_of("KEY").expect("KEY argument missing");
+
+            match store.remove(key.to_string()) {
+                Ok(()) => {}
+                Err(_) => {
+                    println!("Key not found");
+                    exit(1);
+                }
+            }
         }
         _ => {
             eprintln!("command Not Found");
             exit(1)
         }
     }
+    Ok(())
 }
