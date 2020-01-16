@@ -1,6 +1,7 @@
 use failure::Fail;
+use serde::{Deserialize, Serialize};
 use std::fs::{self};
-use std::io;
+use std::io::{self, Write};
 use std::path::PathBuf;
 
 #[derive(Fail, Debug)]
@@ -36,9 +37,23 @@ pub type Result<T> = std::result::Result<T, KvsError>;
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Default)]
+#[derive(Debug)]
 pub struct KvStore {
     path: PathBuf,
+    log: std::fs::File,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+enum CommandType {
+    Set,
+    Rm,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Command {
+    cmd: CommandType,
+    key: String,
+    value: String,
 }
 
 impl KvStore {
@@ -46,11 +61,22 @@ impl KvStore {
     pub fn open(path: impl Into<PathBuf>) -> Result<KvStore> {
         let path = path.into();
         fs::create_dir_all(&path)?;
+        let mut log = fs::File::create(&path.join("log.data"))?;
 
-        Ok(KvStore { path })
+        Ok(KvStore { path, log })
     }
 
-    pub fn set(&mut self, _key: String, _value: String) -> Result<()> {
+    pub fn set(&mut self, key: String, value: String) -> Result<()> {
+        let record = Command {
+            cmd: CommandType::Set,
+            key: key,
+            value: value,
+        };
+        // binary encoding before writing to log
+        let mut encoded_record: Vec<u8> = bincode::serialize(&record).unwrap();
+        encoded_record.insert(0, encoded_record.len() as u8);
+
+        self.log.write_all(&encoded_record);
         Ok(())
     }
 
