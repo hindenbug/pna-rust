@@ -1,2 +1,5 @@
-pub use kv::{KvStore, KvsError, Result};
+pub use error::{KvsError, Result};
+pub use kv::KvStore;
+
+mod error;
 mod kv;

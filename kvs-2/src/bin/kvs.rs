@@ -1,6 +1,5 @@
-extern crate clap;
 use clap::{App, Arg, SubCommand};
-use kvs::{KvStore, Result};
+use kvs::{KvStore, KvsError, Result};
 use std::env::current_dir;
 use std::process::exit;
 
@@ -64,7 +63,7 @@ fn main() -> Result<()> {
         ("rm", Some(matches)) => {
             let key = matches.value_of("KEY").expect("KEY argument missing");
             match store.remove(key.to_string()) {
-                Ok(()) => exit(0),
+                Ok(()) => {}
                 Err(err) => {
                     println!("{}", err);
                     exit(1);

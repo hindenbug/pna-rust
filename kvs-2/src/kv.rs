@@ -1,26 +1,10 @@
-use failure::Fail;
+use crate::{KvsError, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::env::current_dir;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, Error, Write};
 use std::path::PathBuf;
-
-#[derive(Fail, Debug)]
-pub enum KvsError {
-    #[fail(display = "{}", _0)]
-    Io(#[cause] io::Error),
-    #[fail(display = "Key not found")]
-    KeyNotFound,
-}
-
-impl From<io::Error> for KvsError {
-    fn from(err: io::Error) -> KvsError {
-        KvsError::Io(err)
-    }
-}
-
-pub type Result<T> = std::result::Result<T, KvsError>;
 
 /// The `KvStore` stores string key/value pairs.
 ///
