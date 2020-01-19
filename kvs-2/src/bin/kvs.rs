@@ -63,7 +63,13 @@ fn main() -> Result<()> {
         }
         ("rm", Some(matches)) => {
             let key = matches.value_of("KEY").expect("KEY argument missing");
-            store.remove(key.to_string());
+            match store.remove(key.to_string()) {
+                Ok(()) => exit(0),
+                Err(err) => {
+                    println!("{}", err);
+                    exit(1);
+                }
+            }
         }
         _ => {
             eprintln!("command Not Found");
