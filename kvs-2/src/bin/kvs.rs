@@ -55,7 +55,6 @@ fn main() -> Result<()> {
         }
         ("get", Some(matches)) => {
             let key = matches.value_of("KEY").expect("KEY argument missing");
-
             if let Some(value) = store.get(key.to_string())? {
                 println!("{}", value);
             } else {
@@ -64,14 +63,7 @@ fn main() -> Result<()> {
         }
         ("rm", Some(matches)) => {
             let key = matches.value_of("KEY").expect("KEY argument missing");
-
-            match store.remove(key.to_string()) {
-                Ok(()) => {}
-                Err(_) => {
-                    println!("Key not found");
-                    exit(1);
-                }
-            }
+            store.remove(key.to_string());
         }
         _ => {
             eprintln!("command Not Found");

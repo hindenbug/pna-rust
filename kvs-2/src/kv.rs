@@ -1,7 +1,9 @@
 use failure::Fail;
 use serde::{Deserialize, Serialize};
-use std::fs::{self};
-use std::io::{self, Write};
+use std::collections::{BTreeMap, HashMap};
+use std::env::current_dir;
+use std::fs::{self, File};
+use std::io::{self, BufRead, BufReader, Error, Write};
 use std::path::PathBuf;
 
 #[derive(Fail, Debug)]
@@ -40,7 +42,8 @@ pub type Result<T> = std::result::Result<T, KvsError>;
 #[derive(Debug)]
 pub struct KvStore {
     path: PathBuf,
-    log: std::fs::File,
+    log: File,
+    map: BTreeMap<String, String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -53,38 +56,86 @@ enum CommandType {
 struct Command {
     cmd: CommandType,
     key: String,
-    value: String,
+    value: Option<String>,
 }
 
 impl KvStore {
     // TIL impl Trait
     pub fn open(path: impl Into<PathBuf>) -> Result<KvStore> {
         let path = path.into();
+        let mut map: BTreeMap<String, String> = BTreeMap::new();
         fs::create_dir_all(&path)?;
-        let mut log = fs::File::create(&path.join("log.data"))?;
+        let mut log = std::fs::OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .append(true)
+            .open(&path.join("log.data"))?;
 
-        Ok(KvStore { path, log })
+        let reader = BufReader::new(File::open(&path.join("log.data"))?);
+        let mut stream = serde_json::Deserializer::from_reader(reader).into_iter::<Command>();
+
+        while let Some(cmd) = stream.next() {
+            match cmd {
+                Ok(Command {
+                    cmd: CommandType::Set,
+                    key: key,
+                    value: Some(value),
+                }) => {
+                    map.insert(key, value);
+                }
+                Ok(Command {
+                    cmd: CommandType::Rm,
+                    key: key,
+                    value: None,
+                }) => {
+                    map.remove(&key);
+                }
+                _ => panic!(),
+            }
+        }
+
+        Ok(KvStore {
+            path: path,
+            log: log,
+            map: map,
+        })
     }
 
     pub fn set(&mut self, key: String, value: String) -> Result<()> {
-        let record = Command {
+        let command = Command {
             cmd: CommandType::Set,
-            key: key,
-            value: value,
+            key: key.clone(),
+            value: Some(value.clone()),
         };
-        // binary encoding before writing to log
-        let mut encoded_record: Vec<u8> = bincode::serialize(&record).unwrap();
-        encoded_record.insert(0, encoded_record.len() as u8);
-
-        self.log.write_all(&encoded_record);
+        // encoding before writing to log
+        serde_json::to_writer(&mut self.log, &command);
+        self.log.flush()?;
+        self.map.insert(key, value);
         Ok(())
     }
 
-    pub fn get(&self, _key: String) -> Result<Option<String>> {
-        Ok(None)
+    pub fn get(&self, key: String) -> Result<Option<String>> {
+        Ok(self.map.get(&key).cloned())
+        // let stored_value = self.map.get(&key);
+        // match stored_value {
+        //     Some(value) => return Ok(Some(value.to_string())),
+        //     None => return Ok(None),
+        // };
     }
 
-    pub fn remove(&mut self, _key: String) -> Result<()> {
-        Err(KvsError::KeyNotFound)
+    pub fn remove(&mut self, key: String) -> Result<()> {
+        if self.map.get(&key).is_none() {
+            return Err(KvsError::KeyNotFound);
+        }
+        let command = Command {
+            cmd: CommandType::Rm,
+            key: key.clone(),
+            value: None,
+        };
+        // encoding before writing to log
+        serde_json::to_writer(&mut self.log, &command);
+        self.map.remove(&key);
+        Ok(())
     }
 }
