@@ -2,17 +2,17 @@ use crate::{KvsError, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs::{self, File};
-use std::io::{BufReader, Seek, SeekFrom, Write};
+use std::io::{BufReader, BufWriter, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 
 const COMPACTION_THRESHOLD: u64 = 1024;
-const LOG_FILE_NAME: &str = "current.log";
+const LOG_FILE_NAME: &str = "current.db";
 
 #[derive(Debug)]
 pub struct KvStore {
     path: PathBuf,
     log: File,
-    map: BTreeMap<String, u64>,
+    map: BTreeMap<String, LogPointer>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -25,11 +25,16 @@ enum CommandType {
 struct Command {
     cmd: CommandType,
     key: String,
-    value: Option<String>,
+    value: String,
+}
+
+#[derive(Debug)]
+struct LogPointer {
+    offset: u64,
+    len: u64,
 }
 
 impl KvStore {
-    // TIL impl Trait
     pub fn open(path: impl Into<PathBuf>) -> Result<KvStore> {
         let path = path.into();
         fs::create_dir_all(&path)?;
@@ -41,33 +46,41 @@ impl KvStore {
             map: BTreeMap::new(),
         };
 
-        // Load from log file
+        // Load from log files
         store.load_from_log()?;
         Ok(store)
     }
 
     pub fn set(&mut self, key: String, value: String) -> Result<()> {
+        let offset = self.log.seek(SeekFrom::End(0))?;
         let command = Command {
             cmd: CommandType::Set,
             key: key.clone(),
-            value: Some(value.clone()),
+            value,
         };
-        let current_log_file_offset = self.log.seek(SeekFrom::End(0))?;
         // encoding before writing to log
         serde_json::to_writer(&mut self.log, &command)?;
         self.log.flush()?;
-        self.map.insert(key, current_log_file_offset);
+        let current_offset = self.log.seek(SeekFrom::End(0))?;
+        self.map.insert(
+            key,
+            LogPointer {
+                offset,
+                len: current_offset - offset,
+            },
+        );
+        if current_offset > COMPACTION_THRESHOLD {
+            self.compact()?;
+        }
         Ok(())
     }
 
     pub fn get(&mut self, key: String) -> Result<Option<String>> {
-        // println!("{:?}", key);
-        // println!("{:?}", self.map);
-        if let Some(offset) = self.map.get(&key).cloned() {
-            &self.log.seek(SeekFrom::Start(offset));
+        if let Some(pointer) = self.map.get(&key) {
+            &self.log.seek(SeekFrom::Start(pointer.offset));
             let mut de = serde_json::Deserializer::from_reader(&self.log);
             let cmd: Command = serde::de::Deserialize::deserialize(&mut de)?;
-            Ok(cmd.value)
+            Ok(Some(cmd.value))
         } else {
             Ok(None)
         }
@@ -81,7 +94,7 @@ impl KvStore {
         let command = Command {
             cmd: CommandType::Rm,
             key: key.clone(),
-            value: None,
+            value: String::new(),
         };
         // encoding before writing to log
         serde_json::to_writer(&mut self.log, &command)?;
@@ -103,12 +116,18 @@ impl KvStore {
                     key,
                     value: _value,
                 }) => {
-                    self.map.insert(key, offset);
+                    self.map.insert(
+                        key,
+                        LogPointer {
+                            offset,
+                            len: new_offset - offset,
+                        },
+                    );
                 }
                 Ok(Command {
                     cmd: CommandType::Rm,
                     key,
-                    value: None,
+                    value: _value,
                 }) => {
                     self.map.remove(&key);
                 }
@@ -119,8 +138,36 @@ impl KvStore {
         Ok(())
     }
 
-    fn log_path(path: &PathBuf) -> PathBuf {
-        path.join(format!("{}", LOG_FILE_NAME))
+    fn compact(&mut self) -> Result<()> {
+        let tmp_path: PathBuf = self.path.join("tmp.db");
+        let file_path: PathBuf = self.path.join(LOG_FILE_NAME);
+        let mut work_file = self.log.try_clone()?;
+
+        let mut new_writer = BufWriter::new(
+            fs::OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(true)
+                .open(&tmp_path)?,
+        );
+
+        for (_, pointer) in self.map.iter() {
+            work_file.seek(SeekFrom::Start(pointer.offset))?;
+            let mut de = serde_json::Deserializer::from_reader(&work_file);
+            let cmd: Command = serde::de::Deserialize::deserialize(&mut de)?;
+            serde_json::to_writer(&mut new_writer, &cmd)?;
+        }
+
+        // TODO
+        // handle writes during or file locking, during compaction
+        // keep log/backup of file pre/post compaction, maybe by max file size
+        // fs::rename(work_file, self.path.join(format!("log-{}.db",i)))?;
+        fs::rename(tmp_path, file_path)?;
+        Ok(())
+    }
+
+    fn log_path(path: &PathBuf, fname: String) -> PathBuf {
+        path.join(format!("{}", fname))
     }
 
     fn new_log_file(path: &PathBuf) -> Result<File> {
@@ -129,7 +176,7 @@ impl KvStore {
             .read(true)
             .write(true)
             .append(true)
-            .open(Self::log_path(&path))?;
+            .open(Self::log_path(&path, LOG_FILE_NAME.to_string()))?;
 
         Ok(file)
     }
