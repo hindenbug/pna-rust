@@ -5,23 +5,9 @@ use std::fs::{self, File};
 use std::io::{BufReader, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 
-/// The `KvStore` stores string key/value pairs.
-///
-/// Key/value pairs are persisted to disk in log files. Log files are named after
-/// monotonically increasing generation numbers with a `log` extension name.
-/// A `BTreeMap` in memory stores the keys and the value locations for fast query.
-///
-/// ```rust
-/// # use kvs::{KvStore, Result};
-/// # fn try_main() -> Result<()> {
-/// use std::env::current_dir;
-/// let mut store = KvStore::open(current_dir()?)?;
-/// store.set("key".to_owned(), "value".to_owned())?;
-/// let val = store.get("key".to_owned())?;
-/// assert_eq!(val, Some("value".to_owned()));
-/// # Ok(())
-/// # }
-/// ```
+const COMPACTION_THRESHOLD: u64 = 1024;
+const LOG_FILE_NAME: &str = "current.log";
+
 #[derive(Debug)]
 pub struct KvStore {
     path: PathBuf,
@@ -46,20 +32,13 @@ impl KvStore {
     // TIL impl Trait
     pub fn open(path: impl Into<PathBuf>) -> Result<KvStore> {
         let path = path.into();
-        let map: BTreeMap<String, u64> = BTreeMap::new();
         fs::create_dir_all(&path)?;
-        let log = std::fs::OpenOptions::new()
-            .create(true)
-            .read(true)
-            .write(true)
-            .append(true)
-            .open(&path.join("log.data"))?;
+        let log = Self::new_log_file(&path)?;
 
-        // Initialize KvStore
         let mut store = KvStore {
             path: path,
             log: log,
-            map: map,
+            map: BTreeMap::new(),
         };
 
         // Load from log file
@@ -112,7 +91,7 @@ impl KvStore {
     }
 
     fn load_from_log(&mut self) -> Result<()> {
-        let mut reader = BufReader::new(File::open(&self.path.join("log.data"))?);
+        let mut reader = BufReader::new(File::open(&self.path.join(LOG_FILE_NAME))?);
         let mut offset = reader.seek(SeekFrom::Start(0))?;
         let mut stream = serde_json::Deserializer::from_reader(reader).into_iter::<Command>();
 
@@ -138,5 +117,20 @@ impl KvStore {
             offset = new_offset;
         }
         Ok(())
+    }
+
+    fn log_path(path: &PathBuf) -> PathBuf {
+        path.join(format!("{}", LOG_FILE_NAME))
+    }
+
+    fn new_log_file(path: &PathBuf) -> Result<File> {
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .append(true)
+            .open(Self::log_path(&path))?;
+
+        Ok(file)
     }
 }
