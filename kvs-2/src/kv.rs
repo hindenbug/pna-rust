@@ -1,9 +1,8 @@
 use crate::{KvsError, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
-use std::env::current_dir;
+use std::collections::BTreeMap;
 use std::fs::{self, File};
-use std::io::{self, BufRead, BufReader, Error, Read, Seek, SeekFrom, Write};
+use std::io::{BufReader, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 
 /// The `KvStore` stores string key/value pairs.
@@ -76,7 +75,7 @@ impl KvStore {
         };
         let current_log_file_offset = self.log.seek(SeekFrom::End(0))?;
         // encoding before writing to log
-        serde_json::to_writer(&mut self.log, &command);
+        serde_json::to_writer(&mut self.log, &command)?;
         self.log.flush()?;
         self.map.insert(key, current_log_file_offset);
         Ok(())
@@ -106,7 +105,7 @@ impl KvStore {
             value: None,
         };
         // encoding before writing to log
-        serde_json::to_writer(&mut self.log, &command);
+        serde_json::to_writer(&mut self.log, &command)?;
         self.log.flush()?;
         self.map.remove(&key);
         Ok(())
@@ -122,14 +121,14 @@ impl KvStore {
             match cmd {
                 Ok(Command {
                     cmd: CommandType::Set,
-                    key: key,
+                    key,
                     value: _value,
                 }) => {
                     self.map.insert(key, offset);
                 }
                 Ok(Command {
                     cmd: CommandType::Rm,
-                    key: key,
+                    key,
                     value: None,
                 }) => {
                     self.map.remove(&key);
