@@ -12,6 +12,8 @@ pub enum KvsError {
     /// Serialization or deserialization error.
     #[fail(display = "{}", _0)]
     Serde(#[cause] serde_json::Error),
+    #[fail(display = "Engine not found")]
+    EngineNotFound
 }
 
 impl From<io::Error> for KvsError {

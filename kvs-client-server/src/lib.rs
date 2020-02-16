@@ -1,7 +1,5 @@
-pub use engine::KvsEngine;
+pub use engines::{KvStore, KvsEngine, SledKvsEngine};
 pub use error::{KvsError, Result};
-pub use kv::KvStore;
 
-mod engine;
+mod engines;
 mod error;
-mod kv;
