@@ -1,9 +1,29 @@
 use clap::{App, Arg};
-use structopt::clap::{arg_enum, value_t};
-use kvs::{Result, KvsError};
-use kvs::{KvsEngine, SledKvsEngine};
-use log::{debug, error, info, LevelFilter};
+use kvs::KvStore;
+use kvs::{KvsError, Result, Server};
+use log::{debug, info, LevelFilter};
+use std::env;
 use std::str::FromStr;
+
+const DEFAULT_LISTENING_ADDRESS: &str = "127.0.0.1:4000";
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum Engine {
+    Kvs,
+    Sled,
+}
+
+impl FromStr for Engine {
+    type Err = KvsError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "kvs" => Ok(Engine::Kvs),
+            "sled" => Ok(Engine::Sled),
+            _ => Err(KvsError::EngineNotFound),
+        }
+    }
+}
 
 fn main() -> Result<()> {
     env_logger::builder()
@@ -28,15 +48,28 @@ fn main() -> Result<()> {
                 .help("storage engine to use")
                 .long("engine")
                 .value_name("ENGINE-NAME")
+                .case_insensitive(true)
                 .takes_value(true),
         )
         .get_matches();
 
-    let addr: &str = matches.value_of("addr").unwrap_or("127.0.0.0:4000");
-    let engine = matches.value_of("engine").unwrap_or("kvs");
+    let addr: &str = matches
+        .value_of("addr")
+        .unwrap_or(DEFAULT_LISTENING_ADDRESS);
+    let engine: Engine = Engine::from_str(matches.value_of("engine").unwrap_or("kvs"))?;
+    println!("{:?}", engine);
+
+    match engine {
+        Engine::Kvs => {
+            let engine = KvStore::open(env::current_dir()?)?;
+            let mut server = Server::new(addr, engine);
+            server.serve()?;
+        }
+        Engine::Sled => unimplemented!("Sled"),
+    }
 
     info!("kvs-server {}", env!("CARGO_PKG_VERSION"));
-    info!("kvs-server storage engine {}", engine);
+    info!("kvs-server storage engine {:?}", engine);
     info!("Listening on {}", addr);
     Ok(())
 }
