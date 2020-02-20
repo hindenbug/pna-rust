@@ -1,3 +1,4 @@
+use crate::KvsEngine;
 use crate::{KvsError, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -34,24 +35,8 @@ struct LogPointer {
     len: u64,
 }
 
-impl KvStore {
-    pub fn open(path: impl Into<PathBuf>) -> Result<KvStore> {
-        let path = path.into();
-        fs::create_dir_all(&path)?;
-        let log = Self::new_log_file(&path)?;
-
-        let mut store = KvStore {
-            path: path,
-            log: log,
-            map: BTreeMap::new(),
-        };
-
-        // Load from log files
-        store.load_from_log()?;
-        Ok(store)
-    }
-
-    pub fn set(&mut self, key: String, value: String) -> Result<()> {
+impl KvsEngine for KvStore {
+    fn set(&mut self, key: String, value: String) -> Result<()> {
         let offset = self.log.seek(SeekFrom::End(0))?;
         let command = Command {
             cmd: CommandType::Set,
@@ -75,7 +60,7 @@ impl KvStore {
         Ok(())
     }
 
-    pub fn get(&mut self, key: String) -> Result<Option<String>> {
+    fn get(&mut self, key: String) -> Result<Option<String>> {
         if let Some(pointer) = self.map.get(&key) {
             &self.log.seek(SeekFrom::Start(pointer.offset));
             let mut de = serde_json::Deserializer::from_reader(&self.log);
@@ -86,7 +71,7 @@ impl KvStore {
         }
     }
 
-    pub fn remove(&mut self, key: String) -> Result<()> {
+    fn remove(&mut self, key: String) -> Result<()> {
         self.log.seek(SeekFrom::End(0))?;
         if self.map.get(&key).is_none() {
             return Err(KvsError::KeyNotFound);
@@ -101,6 +86,24 @@ impl KvStore {
         self.log.flush()?;
         self.map.remove(&key);
         Ok(())
+    }
+}
+
+impl KvStore {
+    pub fn open(path: impl Into<PathBuf>) -> Result<KvStore> {
+        let path = path.into();
+        fs::create_dir_all(&path)?;
+        let log = Self::new_log_file(&path)?;
+
+        let mut store = KvStore {
+            path: path,
+            log: log,
+            map: BTreeMap::new(),
+        };
+
+        // Load from log files
+        store.load_from_log()?;
+        Ok(store)
     }
 
     fn load_from_log(&mut self) -> Result<()> {
