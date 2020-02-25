@@ -42,12 +42,35 @@ impl<E: KvsEngine> Server<E> {
         debug!("Waiting data from {}", stream.peer_addr()?);
         let peer_addr = stream.peer_addr()?;
         let reader = BufReader::new(&stream);
+        let mut writer = BufWriter::new(&stream);
 
-        println!("{:?}", reader);
         let req_reader = serde_json::Deserializer::from_reader(reader).into_iter::<Request>();
 
+        macro_rules! send_response {
+            ($resp:expr) => {
+                let resp = $resp;
+                serde_json::to_writer(&mut writer, &resp)?;
+                writer.flush()?;
+                info!("Response sent to {}: {:?}", peer_addr, resp);
+            };
+        }
+
         for req in req_reader {
-            info!("Received request from {}: {:?}", peer_addr, req);
+            debug!("Received request from {}: {:?}", peer_addr, req);
+            match req? {
+                Request::Get { key } => {
+                    debug!("key: {}", key);
+                    send_response!(GetResponse::Ok(Some("val".to_string())));
+                }
+                Request::Set { key, value } => {
+                    debug!("key: {}, value: {}", key, value);
+                    send_response!(SetResponse::Ok(()));
+                }
+                Request::Remove { key } => {
+                    debug!("key: {}", key);
+                    send_response!(RemoveResponse::Ok(()));
+                }
+            }
         }
 
         Ok(())
