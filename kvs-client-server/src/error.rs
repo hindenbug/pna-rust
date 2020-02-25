@@ -14,6 +14,9 @@ pub enum KvsError {
     Serde(#[cause] serde_json::Error),
     #[fail(display = "Engine not found")]
     EngineNotFound,
+    /// Error with a string message
+    #[fail(display = "{}", _0)]
+    StringError(String),
 }
 
 impl From<io::Error> for KvsError {

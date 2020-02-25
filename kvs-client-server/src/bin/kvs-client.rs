@@ -21,10 +21,11 @@
 //! All error messages should be printed to stderr.
 
 use clap::{App, Arg, SubCommand};
-use kvs::Result;
-use std::net::TcpStream;
+use kvs::{Client, Result};
+
 use std::process::exit;
 
+const DEFAULT_LISTENING_ADDRESS: &str = "127.0.0.1:4000";
 fn main() -> Result<()> {
     let matches = App::new("kvs-client")
         .version(env!("CARGO_PKG_VERSION"))
@@ -94,16 +95,22 @@ fn main() -> Result<()> {
 
     match matches.subcommand() {
         ("set", Some(matches)) => {
-            let addr = matches.value_of("addr").unwrap_or("127.0.0.1:4000");
-            TcpStream::connect(addr)?;
+            let addr = matches
+                .value_of("addr")
+                .unwrap_or(DEFAULT_LISTENING_ADDRESS);
+            Client::new(addr)?;
         }
         ("get", Some(matches)) => {
-            let addr = matches.value_of("addr").unwrap_or("127.0.0.1:4000");
-            TcpStream::connect(addr)?;
+            let addr = matches
+                .value_of("addr")
+                .unwrap_or(DEFAULT_LISTENING_ADDRESS);
+            Client::new(addr)?;
         }
         ("rm", Some(matches)) => {
-            let addr = matches.value_of("addr").unwrap_or("127.0.0.1:4000");
-            TcpStream::connect(addr)?;
+            let addr = matches
+                .value_of("addr")
+                .unwrap_or(DEFAULT_LISTENING_ADDRESS);
+            Client::new(addr)?;
         }
         _ => {
             eprintln!("Command Not Found");

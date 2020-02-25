@@ -57,12 +57,10 @@ fn main() -> Result<()> {
         .value_of("addr")
         .unwrap_or(DEFAULT_LISTENING_ADDRESS);
     let engine: Engine = Engine::from_str(matches.value_of("engine").unwrap_or("kvs"))?;
-    println!("{:?}", engine);
 
     match engine {
         Engine::Kvs => {
-            let engine = KvStore::open(env::current_dir()?)?;
-            let mut server = Server::new(addr, engine);
+            let server = Server::new(addr, KvStore::open(env::current_dir()?)?);
             server.serve()?;
         }
         Engine::Sled => unimplemented!("Sled"),
