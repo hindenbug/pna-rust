@@ -1,7 +1,6 @@
 use clap::{App, Arg};
-use kvs::KvStore;
-use kvs::{KvsError, Result, Server};
-use log::{debug, info, LevelFilter};
+use kvs::{KvStore, KvsEngine, KvsError, Result, Server, SledKvsEngine};
+use log::{info, LevelFilter};
 use std::env;
 use std::str::FromStr;
 
@@ -65,12 +64,13 @@ fn main() -> Result<()> {
     );
     info!("Listening on: {}", addr.clone());
     match engine {
-        Engine::Kvs => {
-            let mut server = Server::new(addr, KvStore::open(env::current_dir()?)?);
-            server.serve()?;
-        }
-        Engine::Sled => unimplemented!("Sled"),
+        Engine::Kvs => start_server_with(addr, KvStore::open(env::current_dir()?)?),
+        Engine::Sled => start_server_with(addr, SledKvsEngine::open(env::current_dir()?)?),
     }
+}
 
+fn start_server_with<E: KvsEngine>(addr: &str, engine: E) -> Result<()> {
+    let mut server = Server::new(addr, engine);
+    server.serve()?;
     Ok(())
 }
