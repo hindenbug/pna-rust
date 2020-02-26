@@ -98,19 +98,32 @@ fn main() -> Result<()> {
             let addr = matches
                 .value_of("addr")
                 .unwrap_or(DEFAULT_LISTENING_ADDRESS);
-            Client::new(addr)?;
+            let key = matches.value_of("KEY").expect("KEY argument missing");
+            let value = matches.value_of("VALUE").expect("VALUE argument missing");
+
+            let mut client = Client::new(addr)?;
+            client.set(key.to_string(), value.to_string())?
         }
         ("get", Some(matches)) => {
             let addr = matches
                 .value_of("addr")
                 .unwrap_or(DEFAULT_LISTENING_ADDRESS);
-            Client::new(addr)?;
+            let key = matches.value_of("KEY").expect("KEY argument missing");
+            let mut client = Client::new(addr)?;
+            let output = match client.get(key.to_string())? {
+                Some(value) => value,
+                None => "Key not found".to_string(),
+            };
+
+            println!("{}", output);
         }
         ("rm", Some(matches)) => {
             let addr = matches
                 .value_of("addr")
                 .unwrap_or(DEFAULT_LISTENING_ADDRESS);
-            Client::new(addr)?;
+            let key = matches.value_of("KEY").expect("KEY argument missing");
+            let mut client = Client::new(addr)?;
+            client.remove(key.to_string())?;
         }
         _ => {
             eprintln!("Command Not Found");

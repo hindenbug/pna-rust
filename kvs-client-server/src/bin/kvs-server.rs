@@ -8,7 +8,7 @@ use std::str::FromStr;
 const DEFAULT_LISTENING_ADDRESS: &str = "127.0.0.1:4000";
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum Engine {
+pub enum Engine {
     Kvs,
     Sled,
 }
@@ -58,16 +58,19 @@ fn main() -> Result<()> {
         .unwrap_or(DEFAULT_LISTENING_ADDRESS);
     let engine: Engine = Engine::from_str(matches.value_of("engine").unwrap_or("kvs"))?;
 
+    info!(
+        "kvs-server version: {}, storage engine {:?}",
+        env!("CARGO_PKG_VERSION"),
+        engine
+    );
+    info!("Listening on: {}", addr.clone());
     match engine {
         Engine::Kvs => {
-            let server = Server::new(addr, KvStore::open(env::current_dir()?)?);
+            let mut server = Server::new(addr, KvStore::open(env::current_dir()?)?);
             server.serve()?;
         }
         Engine::Sled => unimplemented!("Sled"),
     }
 
-    info!("kvs-server {}", env!("CARGO_PKG_VERSION"));
-    info!("kvs-server storage engine {:?}", engine);
-    info!("Listening on {}", addr);
     Ok(())
 }

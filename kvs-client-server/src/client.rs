@@ -29,6 +29,7 @@ impl Client {
 
         let mut deserializer = Deserializer::new(IoRead::new(&mut self.reader));
         let resp = GetResponse::deserialize(&mut deserializer)?;
+
         match resp {
             GetResponse::Ok(value) => Ok(value),
             GetResponse::Err(err) => Err(KvsError::StringError(err)),
@@ -47,7 +48,7 @@ impl Client {
         }
     }
 
-    pub fn rm(&mut self, key: String) -> Result<()> {
+    pub fn remove(&mut self, key: String) -> Result<()> {
         serde_json::to_writer(&mut self.writer, &Request::Remove { key })?;
         self.writer.flush()?;
 
