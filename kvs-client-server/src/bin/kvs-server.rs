@@ -52,7 +52,6 @@ fn main() -> Result<()> {
                 .long("addr")
                 .value_name("IP-PORT")
                 .help("Specify listening address")
-                .default_value("127.0.0.1:4000")
                 .takes_value(true),
         )
         .get_matches();

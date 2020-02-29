@@ -23,7 +23,7 @@ predicates = "1.0.0"
 tempfile = "3.0.7"
 walkdir = "2.2.7"
 rand = "0.6.5"
-criterion = "0.2.11"
+criterion = "0.3.0"
 
 [lib]
 test = false
@@ -36,3 +36,7 @@ test = false
 [[bin]]
 name = "kvs-server"
 test = false
+
+[[bench]]
+name = "benches"
+harness = false
