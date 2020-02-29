@@ -29,7 +29,7 @@ const DEFAULT_LISTENING_ADDRESS: &str = "127.0.0.1:4000";
 #[structopt(name = "kvs-client")]
 struct Options {
     #[structopt(subcommand)]
-    sub: SubCommand,
+    subcommand: SubCommand,
 }
 
 #[derive(StructOpt)]
@@ -76,7 +76,7 @@ enum SubCommand {
 
 fn main() -> Result<()> {
     let opts = Options::from_args();
-    match opts.sub {
+    match opts.subcommand {
         SubCommand::Set { key, value, addr } => {
             let mut client = Client::new(addr)?;
             client.set(key.to_string(), value.to_string())?
