@@ -20,95 +20,68 @@
 //!     Print the version.
 //! All error messages should be printed to stderr.
 
-use clap::{App, Arg, SubCommand};
 use kvs::{Client, Result};
-
-use std::process::exit;
+use structopt::StructOpt;
 
 const DEFAULT_LISTENING_ADDRESS: &str = "127.0.0.1:4000";
+
+#[derive(StructOpt)]
+#[structopt(name = "kvs-client")]
+struct Options {
+    #[structopt(subcommand)]
+    subcommand: SubCommand,
+}
+
+#[derive(StructOpt)]
+enum SubCommand {
+    #[structopt(about = "Set the value of a string key to a string")]
+    Set {
+        #[structopt(help = "A string key", name = "KEY")]
+        key: String,
+        #[structopt(help = "The string value of the key", name = "VALUE")]
+        value: String,
+        #[structopt(
+            long="addr", help = "Set the server address",
+            value_name = "IP:PORT",
+            default_value = DEFAULT_LISTENING_ADDRESS,
+            parse(try_from_str)
+        )]
+        addr: String,
+    },
+    #[structopt(about = "Get the string value of a given string key")]
+    Get {
+        #[structopt(help = "A string key", name = "KEY")]
+        key: String,
+        #[structopt(
+            long="addr", help = "Set the server address",
+            value_name = "IP:PORT",
+            default_value = DEFAULT_LISTENING_ADDRESS,
+            parse(try_from_str)
+        )]
+        addr: String,
+    },
+    #[structopt(about = "Remove a given key")]
+    Rm {
+        #[structopt(help = "A string key", name = "KEY")]
+        key: String,
+        #[structopt(
+            long="addr", help = "Set the server address",
+            value_name = "IP:PORT",
+            default_value = DEFAULT_LISTENING_ADDRESS,
+            parse(try_from_str)
+        )]
+        addr: String,
+    },
+}
+
 fn main() -> Result<()> {
-    let matches = App::new("kvs-client")
-        .version(env!("CARGO_PKG_VERSION"))
-        .author(env!("CARGO_PKG_AUTHORS"))
-        .about(env!("CARGO_PKG_DESCRIPTION"))
-        .subcommand(
-            SubCommand::with_name("set")
-                .about("Set the value of a string key to a string")
-                .arg(
-                    Arg::with_name("KEY")
-                        .help("The key name")
-                        .required(true)
-                        .index(1),
-                )
-                .arg(
-                    Arg::with_name("VALUE")
-                        .help("The value")
-                        .required(true)
-                        .index(2),
-                )
-                .arg(
-                    Arg::with_name("addr")
-                        .long("addr")
-                        .help("address to connect to server")
-                        .takes_value(true)
-                        .value_name("IP:PORT")
-                        .required(false),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("get")
-                .about("Get a value for a key.")
-                .arg(
-                    Arg::with_name("KEY")
-                        .help("Key name")
-                        .required(true)
-                        .index(1),
-                )
-                .arg(
-                    Arg::with_name("addr")
-                        .long("addr")
-                        .help("address to connect to server")
-                        .takes_value(true)
-                        .value_name("IP:PORT")
-                        .required(false),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("rm")
-                .about("Remove a given key")
-                .arg(
-                    Arg::with_name("KEY")
-                        .help("Key name")
-                        .required(true)
-                        .index(1),
-                )
-                .arg(
-                    Arg::with_name("addr")
-                        .long("addr")
-                        .help("address to connect to server")
-                        .takes_value(true)
-                        .value_name("IP:PORT")
-                        .required(false),
-                ),
-        )
-        .get_matches();
-
-    match matches.subcommand() {
-        ("set", Some(matches)) => {
-            let addr = matches
-                .value_of("addr")
-                .unwrap_or(DEFAULT_LISTENING_ADDRESS);
-            let key = matches.value_of("KEY").expect("KEY argument missing");
-            let value = matches.value_of("VALUE").expect("VALUE argument missing");
-
+    let opts = Options::from_args();
+    match opts.subcommand {
+        SubCommand::Set { key, value, addr } => {
             let mut client = Client::new(addr)?;
             client.set(key.to_string(), value.to_string())?
         }
-        ("get", Some(matches)) => {
-            let addr = matches
-                .value_of("addr")
-                .unwrap_or(DEFAULT_LISTENING_ADDRESS);
-            let key = matches.value_of("KEY").expect("KEY argument missing");
+        SubCommand::Get { key, addr } => {
             let mut client = Client::new(addr)?;
             let output = match client.get(key.to_string())? {
                 Some(value) => value,
@@ -117,17 +90,9 @@ fn main() -> Result<()> {
 
             println!("{}", output);
         }
-        ("rm", Some(matches)) => {
-            let addr = matches
-                .value_of("addr")
-                .unwrap_or(DEFAULT_LISTENING_ADDRESS);
-            let key = matches.value_of("KEY").expect("KEY argument missing");
+        SubCommand::Rm { key, addr } => {
             let mut client = Client::new(addr)?;
             client.remove(key.to_string())?;
-        }
-        _ => {
-            eprintln!("Command Not Found");
-            exit(1)
         }
     }
     Ok(())
