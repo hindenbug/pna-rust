@@ -41,8 +41,8 @@ impl KvStore {
         let log = Self::new_log_file(&path)?;
 
         let mut store = KvStore {
-            path: path,
-            log: log,
+            path,
+            log,
             map: BTreeMap::new(),
         };
 
