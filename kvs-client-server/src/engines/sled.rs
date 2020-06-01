@@ -1,6 +1,8 @@
 use crate::{KvsEngine, KvsError, Result};
 use sled::Db;
 use std::path::PathBuf;
+
+#[derive(Clone)]
 pub struct SledKvsEngine {
     tree: Db,
 }
@@ -13,13 +15,13 @@ impl SledKvsEngine {
 }
 
 impl KvsEngine for SledKvsEngine {
-    fn set(&mut self, key: String, value: String) -> Result<()> {
+    fn set(&self, key: String, value: String) -> Result<()> {
         self.tree.insert(key, value.as_bytes())?;
         self.tree.flush()?;
         Ok(())
     }
 
-    fn get(&mut self, key: String) -> Result<Option<String>> {
+    fn get(&self, key: String) -> Result<Option<String>> {
         Ok(self
             .tree
             .get(key)?
@@ -28,7 +30,7 @@ impl KvsEngine for SledKvsEngine {
             .transpose()?)
     }
 
-    fn remove(&mut self, key: String) -> Result<()> {
+    fn remove(&self, key: String) -> Result<()> {
         self.tree.remove(key)?.ok_or(KvsError::KeyNotFound)?;
         self.tree.flush()?;
         Ok(())

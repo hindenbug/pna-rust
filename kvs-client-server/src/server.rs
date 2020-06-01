@@ -22,7 +22,7 @@ impl<E: KvsEngine> Server<E> {
         Server { listener, engine }
     }
 
-    pub fn serve(&mut self) -> Result<()> {
+    pub fn serve(&self) -> Result<()> {
         debug!("Waiting for connections...");
         let listnr = self.listener.try_clone().unwrap();
         for stream in listnr.incoming() {
@@ -38,7 +38,7 @@ impl<E: KvsEngine> Server<E> {
         Ok(())
     }
 
-    fn handle_client(&mut self, stream: TcpStream) -> Result<()> {
+    fn handle_client(&self, stream: TcpStream) -> Result<()> {
         debug!(
             "Connection established from {}, waiting for data...",
             stream.peer_addr()?

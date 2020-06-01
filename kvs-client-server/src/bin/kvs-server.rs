@@ -79,7 +79,7 @@ fn main() -> Result<()> {
 }
 
 fn start_server_with<E: KvsEngine>(addr: &str, engine: E) -> Result<()> {
-    let mut server = Server::new(addr, engine);
+    let server = Server::new(addr, engine);
     server.serve()?;
     Ok(())
 }
