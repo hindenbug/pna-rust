@@ -1,7 +1,7 @@
-use super::ThreadPool;
-use crate::Result;
+use crate::{Result, ThreadPool};
 
 use std::thread;
+
 pub struct NaiveThreadPool;
 
 impl ThreadPool for NaiveThreadPool {

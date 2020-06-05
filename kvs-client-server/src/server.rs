@@ -1,5 +1,5 @@
 use crate::network::{GetResponse, RemoveResponse, Request, SetResponse};
-use crate::{KvsEngine, NaiveThreadPool, Result, ThreadPool};
+use crate::{KvsEngine, Result, SharedQueueThreadPool, ThreadPool};
 use log::{debug, error, info};
 use serde_json::Deserializer;
 use std::io::{BufReader, BufWriter, Write};
@@ -24,7 +24,7 @@ impl<E: KvsEngine> Server<E> {
 
     pub fn serve(&self) -> Result<()> {
         debug!("Waiting for connections...");
-        let thread_pool = NaiveThreadPool::new(1)?;
+        let thread_pool = SharedQueueThreadPool::new(num_cpus::get() as u32)?;
         let listnr = self.listener.try_clone().unwrap();
         for stream in listnr.incoming() {
             let engine = self.engine.clone();

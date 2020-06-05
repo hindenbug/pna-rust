@@ -1,8 +1,10 @@
 use crate::Result;
 
 mod naive;
+mod shared_queue;
 
 pub use self::naive::NaiveThreadPool;
+pub use self::shared_queue::SharedQueueThreadPool;
 
 pub trait ThreadPool {
     /// Creates a thread pool
