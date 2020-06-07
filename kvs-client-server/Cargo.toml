@@ -7,23 +7,28 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = "2.33.0"
+clap = "2.33.1"
 failure = "0.1.5"
-serde = { version = "1.0.89", features = ["derive"] }
-serde_json = "1.0.39"
+serde = { version = "1.0.111", features = ["derive", "rc"] }
+serde_json = "1.0.53"
 bincode = "1.2.1"
 structopt = "0.3"
 log = "0.4"
 env_logger = "0.7"
 sled = "0.31"
+num_cpus = "1.13.0"
+crossbeam = "0.7.3"
+
 
 [dev-dependencies]
-assert_cmd = "0.11.0"
+assert_cmd = "1.0.1"
 predicates = "1.0.0"
-tempfile = "3.0.7"
+tempfile = "3.1.0"
 walkdir = "2.2.7"
 rand = "0.6.5"
 criterion = "0.3.0"
+crossbeam-utils = "0.7.2"
+panic-control = "0.1.4"
 
 [lib]
 test = false
